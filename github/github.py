@@ -31,7 +31,7 @@ def logout():
 def githubConnect():
     state = request.args.get('state')
     client_id = ''  # CLIENT ID
-    redirect_uri = ''  # REDIRECT URL
+    redirect_uri = url_for('githubconnect')
     if state != session['state']:
         # Redirect to Github to get code
         state = uuid.uuid4()
