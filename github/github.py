@@ -4,7 +4,12 @@ import uuid
 import json
 import requests
 
+
 app = Flask(__name__)
+
+#USE A GLOBAL VARIABLE
+CLIENT_ID = ''  # CLIENT ID
+CLIENT_SECRET = ''
 
 
 @app.route('/')
@@ -18,7 +23,16 @@ def home():
 
 @app.route('/login/')
 def showLogin():
-    return render_template('login.html')
+    
+    redirect_uri = url_for('githubconnect')
+    # Redirect to Github to get code
+    state = uuid.uuid4()
+    session['state'] = unicode(str(state), 'utf-8')
+    scope = 'read:user,user:email'
+    githubLoginUrl = 'https://github.com/login/oauth/authorize?client_id=%s&scope=%s&state=%s' % (
+        CLIENT_ID, scope, state)
+
+    return render_template('login.html', githubLoginUrl=githubLoginUrl)
 
 
 @app.route('/logout/')
@@ -28,36 +42,34 @@ def logout():
 
 
 @app.route('/githubconnect/')
-def githubConnect():
+def githubconnect():
+    print("IN githubconnect")
     state = request.args.get('state')
-    client_id = ''  # CLIENT ID
     redirect_uri = url_for('githubconnect')
-    if state != session['state']:
-        # Redirect to Github to get code
-        state = uuid.uuid4()
-        session['state'] = unicode(str(state), 'utf-8')
-        scope = 'read:user,user:email'
-        url = 'https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=%s&state=%s' % (
-            client_id, redirect_uri, scope, state)
-        return redirect(url)
 
     if 'code' in request.args:
-        client_secret = ''  # CLIENT SECRET
+        print("IN CODE")
         code = request.args.get('code')
+
+        print("CODE IS ", code)
         url = 'https://github.com/login/oauth/access_token'
         payload = {
-            'client_id': client_id,
-            'client_secret': client_secret,
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
             'code': code,
-            'redirect_uri': redirect_uri,
+            'redirect_uri': 'http://127.0.0.1:5000' + redirect_uri,
             'state': state
         }
+        print(payload)
         headers = {'Accept': 'application/json'}
         r = requests.post(url, params=payload, headers=headers)
         response = r.json()
+        print(response)
         if 'access_token' in response:
             access_token = response['access_token']
             session['access_token'] = access_token
+
+            print("GOT ACCESS TOKEN ", access_token)
 
             url = 'https://api.github.com/user?access_token={}'
             r = requests.get(url.format(access_token))
@@ -86,4 +98,4 @@ def githubConnect():
 if __name__ == '__main__':
     app.secret_key = 'super_secret_key'
     app.debug = True
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='127.0.0.1', port=5000)
